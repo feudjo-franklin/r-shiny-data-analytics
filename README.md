@@ -29,7 +29,7 @@ Die Rohdaten (Einzelteile, Komponenten, Fahrzeuge, Zulassungen, Geodaten) lagen 
 
 ## Ausführung
 Repository klonen:
-git clone https://github.com/DEIN_USERNAME/r-shiny-case-study.git
+Projekt herunterladen : https://drive.google.com/file/d/1w5XFIOMha1GGeDppeTMPqQswlhMUY8Sn/view?usp=sharing
 
 Benötigte R-Packages installieren (die App installiert fehlende Pakete beim ersten Start automatisch, oder manuell):
 install.packages(c("shiny", "tidyverse", "data.table", "ggplot2", "leaflet", "lubridate", "DT"))
