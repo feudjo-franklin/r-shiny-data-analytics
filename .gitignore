@@ -1,0 +1,15 @@
+@"
+# RStudio
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+Final_Data_Group_07
+
+# Data (heavy files)
+data/
+*.csv
+*.txt
+*.xlsx
+"@ | Out-File -FilePath .gitignore -Encoding utf8

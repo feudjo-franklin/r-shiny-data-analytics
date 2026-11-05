@@ -1,0 +1,439 @@
+---
+title: "Allgemeine_Aufgaben_Gruppe_07"
+output: html_document
+date: "2025-02-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Working Directory
+
+Aktuelles Working Directory in der Variablen `wd`speichern und aktuelles Working Directory auf den Pfad setzen.
+
+```{r Working Directory}
+(wd <- getwd())
+
+setwd(wd)
+dir()
+
+```
+
+# Pakete installien und laden
+- Paket 'tidyverse' installieren und laden
+- Paket 'readxl' installieren und laden
+- Paket 'readr' installieren und laden
+- Paket 'dplyr' installieren und laden
+
+```{r}
+if(!require(install.load)){
+  install.packages("install.load")
+  library(install.load)
+  library(readxl)
+  install.packages("readr")  
+  library(readr)
+  install.packages("dplyr")
+  library(dplyr)
+}
+
+install_load("tidyverse", "readxl")
+```
+# Allgemeine Aufgaben
+
+Allgemeine Aufgaben (25 Punkte erreichbar) Neben der Case Study gibt es noch weitere zu bearbeitende allgemeine Aufgaben. Denken Sie auch hier an die Dokumentation Ihres Codes, damit Ihre Lösungen auch nachvollzogen werden können und ggf. Punkte für unvollständige Lösungen gegeben werden können.
+
+## 1. Aufgabe: Logistikverzug
+
+Logistik spielt in der Produktentwicklung der Automobilindustrie eine immer größer werdende Rolle. So müssen vom Lieferanten produzierte Teile zunächst zum OEM geliefert werden, bevor sie eingebaut werden können. Was auf den ersten Blick logisch erscheint, sollte für eine professionelle Organisation unbedingt näher analysiert werden. Erstellen Sie deshalb eine Verteilung für den Logistikverzug von Komponente „K7“. Nutzen Sie hierfür das Produktionsdatum aus dem Datensatz “Komponente_K7.csv” und das Wareneingangsdatum aus “Logistikverzug_K7.csv”. Sie können davon ausgehen, dass der Hersteller das Teil am auf den Produktionstag folgenden Werktag an die Logistikabteilung übergibt. Für die Versandvorbereitung wird ein Werktag benötig. Erstellen Sie für die Modellbildung in R einen neuen Datensatz “Logistikverzug”, der die benötigten Informationen aus beiden Datensätzen enthält.
+
+Wie ist der Logistikverzug verteilt? Begründen Sie Ihre Auswahl und stellen Sie Ihre  Vorgehensweise kurz dar (6 Punkte).
+
+```{r Aufgabe 1}
+
+# Daten importieren und anzeigen
+library(readr)
+Komponente_K7 <- read_delim("Final_Data_Group_07/Logistikverzug/Komponente_K7.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+Logistikverzug_K7 <- read_delim("Final_Data_Group_07/Logistikverzug/Logistikverzug_K7.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+
+```
+
+Wir schauen uns die Tabellen und deren Aufbau an
+
+```{r}
+str(Komponente_K7)
+
+head(Komponente_K7)
+
+```
+```{r}
+str(Logistikverzug_K7)
+
+head(Logistikverzug_K7)
+
+```
+Datumsformat von Logistikverzug muss angepasst werden. Wir ändern den Datentypen und die Reihenfolge, so dass sie mit dem Datumsformat von Kompenente_K7 zusammenpasst
+
+```{r}
+# Wareneingang in Date-Format umwandeln (Tag-Monat-Jahr)
+Logistikverzug_K7 <- Logistikverzug_K7 %>%
+  mutate(Wareneingang = dmy(Wareneingang))  # "17.11.2008" → 2008-11-17
+
+# Ergebnis prüfen
+glimpse(Logistikverzug_K7)
+
+head(Logistikverzug_K7)
+
+```
+
+Jetzt wollen wir den Verzug berechnen
+
+```{r}
+# Warenausgang berechnen (Produktionstag + 2 Werktage)
+Komponente_K7 <- Komponente_K7 %>%
+  mutate(Warenausgang = Produktionsdatum + days(2))
+
+# Überprüfen, ob die Spalte korrekt erstellt wurde
+head(Komponente_K7)
+```
+
+
+```{r}
+# Daten verbinden & Verzug berechnen
+Logistikverzug <- Komponente_K7 %>%
+  select(IDNummer, Warenausgang) %>%
+  inner_join(Logistikverzug_K7 %>% select(IDNummer, Wareneingang), by = "IDNummer") %>%
+  mutate(Logistikverzug = as.numeric(Wareneingang - Warenausgang))
+
+# Ergebnisse prüfen
+head(Logistikverzug)
+```
+
+
+Jetzt schauen wir uns die Häufigkeiten an
+```{r}
+
+# Absolute Häufigkeit (Wie oft kommt jeder Verzug vor?)
+absolute_haeufigkeit <- table(Logistikverzug$Logistikverzug)
+
+# Relative Häufigkeit (Anteil der jeweiligen Verzögerungen)
+relative_haeufigkeit <- round(prop.table(absolute_haeufigkeit), 2)
+
+# In einen DataFrame umwandeln, um besser damit arbeiten zu können
+verzug_df <- data.frame(
+  Logistikverzug = as.numeric(names(absolute_haeufigkeit)),  # Tage
+  Absolute_Haeufigkeit = as.vector(absolute_haeufigkeit),   # Anzahl der Fälle
+  Relative_Haeufigkeit = as.vector(relative_haeufigkeit)    # Anteil
+)
+
+```
+
+Tabelle anzeigen
+```{r}
+View(verzug_df)
+```
+
+
+absolute Häufigkeite visualisieren
+
+```{r}
+
+ggplot(verzug_df, aes(x = Logistikverzug, y = Absolute_Haeufigkeit)) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black") +
+  labs(title = "Verteilung des Logistikverzugs",
+       x = "Logistikverzug (Tage)",
+       y = "Absolute Häufigkeit") +
+  theme_minimal()
+```
+Wie viel Zeit vergeht mindestens/höchstens zwischen Warenausgang und Wareneingang (2 Punkte)?
+
+```{r}
+# Minimaler Logistikverzug
+min_verzug <- min(Logistikverzug$Logistikverzug, na.rm = TRUE)
+
+# Maximaler Logistikverzug
+max_verzug <- max(Logistikverzug$Logistikverzug, na.rm = TRUE)
+
+# Ergebnisse ausgeben
+cat("Minimaler Logistikverzug:", min_verzug, "Tage\n")
+```
+```{r}
+cat("Maximaler Logistikverzug:", max_verzug, "Tage\n")
+```
+Bestimmen Sie den Mittelwert des Logistikverzugs (1 Punkt).
+
+```{r}
+# Mittelwert des Logistikverzugs berechnen (in Tagen)
+mean_verzug <- mean(Logistikverzug$Logistikverzug, na.rm = TRUE)
+
+# Ganze Tage extrahieren
+tage <- floor(mean_verzug)  # Ganze Tage
+
+# Restliche Stunden berechnen
+stunden_uebrig <- (mean_verzug - tage) * 24  
+stunden <- floor(stunden_uebrig)  # Ganze Stunden
+
+# Restliche Minuten berechnen
+minuten <- round((stunden_uebrig - stunden) * 60)  # Ganze Minuten
+
+# Ergebnis ausgeben
+cat("Durchschnittlicher Logistikverzug:", mean_verzug, "Tage\n")
+```
+```{r}
+cat("Das entspricht:", tage, "Tagen,", stunden, "Stunden und", minuten, "Minuten\n")
+```
+Stellen Sie die Verteilung in geeigneter Weise mit Plotly dar (2 Punkte).
+
+```{r}
+library(plotly)
+
+# Interaktives Histogramm mit Plotly
+plotly_histogram <- plot_ly(
+  data = Logistikverzug,
+  x = ~Logistikverzug, 
+  type = "histogram",
+  marker = list(color = "steelblue")) %>%
+  layout(
+    title = "Verteilung des Logistikverzugs",
+    xaxis = list(title = "Logistikverzug (Tage)"),
+    yaxis = list(title = "Häufigkeit"),
+    bargap = 0.1
+  )
+
+# Plot anzeigen
+plotly_histogram
+```
+```{r}
+# Daten für Plotly vorbereiten
+plotly_data <- verzug_df  # DataFrame mit Häufigkeiten aus vorherigem Schritt
+
+# Interaktives Balkendiagramm
+plotly_barchart <- plot_ly(
+  data = plotly_data,
+  x = ~Logistikverzug, 
+  y = ~Absolute_Haeufigkeit, 
+  type = "bar",
+  marker = list(color = "orange")
+) %>%
+  layout(
+    title = "Absolute Häufigkeit des Logistikverzugs",
+    xaxis = list(title = "Logistikverzug (Tage)"),
+    yaxis = list(title = "Anzahl der Fälle"),
+    bargap = 0.2
+  )
+
+# Plot anzeigen
+plotly_barchart
+```
+
+## Aufgabe 2:
+
+Warum ist es sinnvoll, die Ihnen bereitgestellten Daten in separaten Dateien abzulegen und nicht alles in einer riesigen Tabelle abzuspeichern (4 Argumente)? Wie nennt sich das zugrunde liegende Datenbankkonzept? (3 Punkte)
+
+```{r Aufgabe 2}
+#Für eine bessere Datenorganisation und Verwaltbarkeit ist es sinnvoller die Daten in separaten Dateien oder Tabellen abzulegen. Bei einer großen Datenmenge ermöglicht diese Vorgehensweise eine effizientere Speicherung, Verwaltung und Bearbeitung der Daten. Wichtige Gründe hierfür sind die Redundanzvermeidung, eine bessere Wartbarkeit, eine einfache Such- und Abfrageoperation sowie die Skalierbarbeit und Performance.
+
+#1.Redundanzvermeidung (Normalisierung)
+# Daten werden in separate Tabellen aufgeteilt um redundante Daten zu vermeiden. In einer großen, monolithischen Tabelle kommen die Daten oft mehrfach vor, sodass es zu Inkonsistenzen und einem erhöhten Speicheraufwand kommen kann. 
+
+#2.Bessere Wartbarkeit 
+# Es ist es sinnvoller einzelne Dateien oder Tabellen zu haben, um diese leichter warten und aktualisieren zu können, weil Änderungen in einer Tabelle weniger Auswirkungen auf andere Daten haben.
+
+#3. Einfache Such- und Abfrageoperation
+# Kleinere und spezialisierte Tabellen ermöglichen eine schnellere Abfrage und Analyse, weil sie nur relevante Daten enthalten. Es muss keine große Tabelle durchsucht werden, was Zeitintensiver ist. 
+
+#4. Skalierbarkeit und Performance: 
+# Durch die Verteilung der Daten in mehreren Tabellen können Daten unabhängig voneinander skaliert und optimiert werden. Bei Arbeiten mit großen Datenmengen führt die Skalierbarkeit zu einer besseren Performance.
+
+# Dieses zugrunde liegende Datenbankkonzept heißt Datenbanknormalisierung. Bei diesem Datenkonzept erfolgt die Aufteilung der Datenstruktur in mehrere Tabellen, die über Schlüssel (z. B. Primärschlüssel und Fremdschlüssel) miteinander verbunden werden. Hierbei soll eine Minimierung der Redundanz und eine Integrität der Daten gewährleistet werden.
+
+#(Quelle: Chatgpt)
+```
+## Aufgabe 3:
+
+Wie viele der Komponenten K7 landeten in Fahrzeugen, die in Wehr, Landkreis Waldshut zugelassen wurden? (3 Punkte)
+
+```{r Aufgabe 3}
+library(readr)
+Zulassungen_alle_Fahrzeuge <- read_delim("Final_Data_Group_07/Zulassungen/Zulassungen_alle_Fahrzeuge.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+head(Zulassungen_alle_Fahrzeuge)
+```
+
+```{r}
+# Datensatz filtern nach genau "Wehr" oder "Waldshut"
+filtered_data <- Zulassungen_alle_Fahrzeuge %>%
+  filter(Gemeinden %in% c("WEHR", "WEHR1"))
+
+# Gefilterte Daten anzeigen
+head(filtered_data)
+```
+Relevante Tabellen mit Fahrzeugdaten importieren, welche uns zeigen, welche Fahrzeuge K7 Komponenten verbaut haben könnten
+
+```{r}
+Bestandteile_Fahrzeuge_OEM1_Typ11 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ11.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+head(Bestandteile_Fahrzeuge_OEM1_Typ11)
+```
+```{r}
+str(Bestandteile_Fahrzeuge_OEM1_Typ11)
+```
+```{r}
+Bestandteile_Fahrzeuge_OEM1_Typ12 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ12.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+head(Bestandteile_Fahrzeuge_OEM1_Typ12)
+```
+```{r}
+str(Bestandteile_Fahrzeuge_OEM1_Typ12)
+```
+```{r}
+Bestandteile_Fahrzeuge_OEM2_Typ11 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ12.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+head(Bestandteile_Fahrzeuge_OEM2_Typ11)
+```
+```{r}
+str(Bestandteile_Fahrzeuge_OEM2_Typ11)
+```
+```{r}
+Bestandteile_Fahrzeuge_OEM2_Typ12 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ12.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+head(Bestandteile_Fahrzeuge_OEM2_Typ12)
+```
+```{r}
+str(Bestandteile_Fahrzeuge_OEM2_Typ12)
+```
+alle relevanten Tabellen zusammenführen
+
+```{r}
+# Notwendige Bibliotheken laden
+library(readr)
+library(dplyr)
+
+# CSV-Dateien einlesen
+Bestandteile_Fahrzeuge_OEM1_Typ11 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ11.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Bestandteile_Fahrzeuge_OEM1_Typ12 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM1_Typ12.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Bestandteile_Fahrzeuge_OEM2_Typ21 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM2_Typ21.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Bestandteile_Fahrzeuge_OEM2_Typ22 <- read_delim("Final_Data_Group_07/Fahrzeug/Bestandteile_Fahrzeuge_OEM2_Typ22.csv", delim = ";", escape_double = FALSE, trim_ws = TRUE)
+
+# Alle Tabellen zusammenführen
+Bestandteile_Fahrzeuge <- bind_rows(
+  Bestandteile_Fahrzeuge_OEM1_Typ11,
+  Bestandteile_Fahrzeuge_OEM1_Typ12,
+  Bestandteile_Fahrzeuge_OEM2_Typ21,
+  Bestandteile_Fahrzeuge_OEM2_Typ22
+)
+
+# Struktur der kombinierten Tabelle anzeigen
+str(Bestandteile_Fahrzeuge)
+```
+```{r}
+# Erste Zeilen der kombinierten Tabelle anzeigen
+head(Bestandteile_Fahrzeuge)
+```
+Jetzt wollen wir wissen: Weche Autos haben K7 Komponenten verbaut? Wir joinen beide Tabellen
+
+```{r}
+# Tabellen zusammenführen über ID_Karosserie (Bestandteile_Fahrzeuge) und IDNummer (Komponente_K7)
+fahrzeuge_mit_k7 <- Bestandteile_Fahrzeuge %>%
+  inner_join(Komponente_K7, by = c("ID_Karosserie" = "IDNummer")) %>%
+  select(ID_Karosserie, ID_Fahrzeug)  # Nur die relevanten Spalten behalten
+```
+Wir bereiten die Tablle Zulassung aller Fahrzeuge vor, so dass wir nur die Fahrzeuge sehen, welche in WEHR zugelassen wurden
+
+```{r}
+# Datensatz filtern nach genau "WEHR"
+zulassungen_wehr <- Zulassungen_alle_Fahrzeuge %>%
+  filter(Gemeinden == "WEHR")
+
+# Ergebnis anzeigen
+str(zulassungen_wehr)
+```
+Jetzt gucken wir, welche Fahrzeuge in beiden Tabellen vorkommen und lassen uns die Anzahl der K7 Komponenten ausgeben
+
+```{r}
+# Tabellen zusammenführen über ID_Fahrzeug
+fahrzeuge_k7_in_wehr <- fahrzeuge_mit_k7 %>%
+  inner_join(zulassungen_wehr, by = c("ID_Fahrzeug" = "IDNummer"))
+
+# Ergebnis anzeigen
+print(fahrzeuge_k7_in_wehr)
+```
+```{r}
+# Zählen der einzigartigen ID_Karosserie-Werte
+anzahl_komponenten <- fahrzeuge_k7_in_wehr %>%
+  pull(ID_Karosserie) %>%
+  unique() %>%
+  length() # Anzahl der einzigartigen Komponenten
+
+# Ausgabe im Satz
+cat("Es wurden", anzahl_komponenten, "K7 Komponenten in Fahrzeugen, welche in Wehr zugelassen wurden, verbaut.\n")
+```
+
+## Aufgabe 4:
+Welche Datentypen haben die Attribute der Zulassungstabelle „Zulassungen_aller_Fahrzeuge“? Erstellen Sie dazu eine Tabelle in Markdown. (2 Punkte)
+
+```{r Aufgabe 4}
+
+# Notwendige Bibliotheken laden
+library(dplyr)
+library(knitr)
+
+# Datentypen der Spalten ermitteln
+datentypen_zulassungen <- tibble(
+  Attribut = names(Zulassungen_alle_Fahrzeuge),
+  Datentyp = sapply(Zulassungen_alle_Fahrzeuge, function(x) class(x)[1]) # Nur den ersten Klassentyp ausgeben
+)
+
+# Markdown-Tabelle erstellen und ausgeben
+kable(datentypen_zulassungen, format = "markdown", col.names = c("Attribut", "Datentyp"))
+
+```
+## Aufgabe 5:
+
+Sie wollen Ihre Applikation veröffentlichen. 
+1. Warum ist es gerade dann sinnvoll die Datensätze auf der Datenbank eines Servers abzulegen? 
+2. Warum können Sie die Datensätze nicht auf Ihrem persönlichen Computer ablegen? 
+3. Nennen Sie eine einfache Möglichkeit Ihre Applikation ihrem Kundenkreis zugänglich zu machen? (2 Argumente je Frage, insg. 3 Punkte)
+
+```{r Aufgabe 5}
+#1.Warum ist es sinnvoll, die Datensätze auf der Datenbank eines Servers abzulegen?
+
+#Es ist sinnvoll, die Datensätze auf der Datenbank eines Servers abzulegen, weil bei einer    serverbasierten Datenbank die Daten gleichzeitig, zentral und sicher gespeichert werden können, sodass bei einer veröffentlichten Applikation immer mehrere Nutzer gleichzeitig darauf zugreifen können. Server laufen 24/7 und haben den Vorteil, dass sie leistungsfähiger und zuverlässiger als ein persönlicher Computer sind. Außerdem ist die Verwaltung von Backups, Skalierbarkeit und Sicherheit einfacher, wenn die Daten auf einem Server gespeichert sind.  
+
+#2.Warum können die Datensätze nicht auf dem persönlichen Computer gespeichert werden?
+
+#Datensätze können nicht auf einem persönlichen Computer gespeichert werden, weil Nutzer keinen rund um die Uhr Zugriff auf die Daten haben, da der Computer nicht permanent online ist.Außerdem ist die Leistung eines einzelnen Computers zu gering, um viele Nutzer gleichzeitig zu bedienen. Das Risiko von einem Datenverlust ist bei einem persönlichen Computer viel höher, weil dieser weniger gegen Angriffe und Ausfälle geschützt ist.
+
+#3.Einfache Möglichkeit, die Applikation dem Kundenkreis zugänglich zu machen:
+
+#Einfache Möglichkeit, die Applikation dem Kundenkreis zugänglich zu machen wäre, die Applikation auf einem Webserver zu hosten und die Nutzer können sie dann über einen Webbrowser aufrufen. Es gibt Dienste wie AWS, Google Cloud und Heroku die diese Anwendungen schnell und einfach           bereitstellen. Es könnte auch eine mobile App zum Beispiel über den App Store oder Google Play  verteilt werden.
+
+#(Quelle: Chatgpt)
+```
+## Aufgabe 6:
+
+Am 11.08.2010 hat es einen Unfall mit Fahrerflucht gegeben. Von dem Kennzeichen des Unfallwagens fehlt jede Spur. Die Polizei bittet Sie um Hilfe, da Sie für das Kraftfahrtbundesamt arbeiten und fragt, wo das Fahrzeug mit der Karosseriebauteilnummer „K7-114-1142-31“ zugelassen wurde. (3 Punkte)
+
+```{r Aufgabe 6}
+# Tabellen zusammenführen über ID_Fahrzeug (Bestandteile_Fahrzeuge) und IDNummer (Zulassungen_alle_Fahrzeuge)
+fahrzeug_unfall <- fahrzeuge_mit_k7 %>%
+  inner_join(Zulassungen_alle_Fahrzeuge, by = c("ID_Fahrzeug" = "IDNummer")) %>%
+  filter(ID_Karosserie == "K7-114-1142-31") # Nach der spezifischen Karosserie filtern
+print(fahrzeug_unfall)
+
+```
+
+```{r}
+
+# Gemeinde extrahieren
+gemeinde_unfall <- fahrzeug_unfall %>%
+  pull(Gemeinden) %>% #Nur die Gemeinde extrahieren
+  unique() #Falls mehrere Einträge existieren, nur eine eindeutige Gemeinde behalten
+
+# Ausgabe in einem Satz
+  cat("Das Fahrzeug mit der Karosseriebauteilnummer 'K7-114-1142-31' wurde in der Gemeinde", gemeinde_unfall, "zugelassen.\n")
+```
+
